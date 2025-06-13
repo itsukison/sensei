@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tone Professional Settings</title>
+    <style>
+      body {
+        width: 350px;
+        min-height: 400px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f8f9fa;
+      }
+
+      .header {
+        background: #3182ce;
+        color: white;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .header p {
+        margin: 5px 0 0;
+        font-size: 12px;
+        opacity: 0.9;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .setting-group {
+        margin-bottom: 20px;
+      }
+
+      .setting-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #2d3748;
+        font-size: 14px;
+      }
+
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #cbd5e0;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #3182ce;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      select,
+      input[type="text"],
+      input[type="password"],
+      input[type="number"] {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+
+      select:focus,
+      input:focus {
+        outline: none;
+        border-color: #3182ce;
+        box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+      }
+
+      .help-text {
+        font-size: 12px;
+        color: #718096;
+        margin-top: 4px;
+      }
+
+      .api-section {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 16px;
+      }
+
+      .api-section h3 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #2d3748;
+      }
+
+      .status {
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+
+      .status.development {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+      }
+
+      .status.production {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+
+      .button {
+        background: #3182ce;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 12px;
+      }
+
+      .button:hover {
+        background: #2c5aa0;
+      }
+
+      .button.secondary {
+        background: #e2e8f0;
+        color: #4a5568;
+      }
+
+      .button.secondary:hover {
+        background: #cbd5e0;
+      }
+
+      .input-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>💼 Tone Professional</h1>
+      <p>AI-powered communication assistant</p>
+    </div>
+
+    <div class="content">
+      <div id="status-indicator" class="status development">
+        <strong>Development Mode:</strong> Using mock API responses for testing
+      </div>
+
+      <div class="setting-group">
+        <div class="input-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoCheck" checked />
+            <span>Auto-check while typing</span>
+          </label>
+        </div>
+        <div class="help-text">
+          Automatically analyze tone as you type (with 1-second delay)
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label for="minWordCount">Minimum word count for analysis:</label>
+        <input type="number" id="minWordCount" value="5" min="1" max="50" />
+        <div class="help-text">
+          Only analyze text with at least this many words
+        </div>
+      </div>
+
+      <div class="api-section">
+        <h3>API Configuration</h3>
+
+        <div class="setting-group">
+          <div class="input-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="useMockApi" checked />
+              <span>Use mock API (for development)</span>
+            </label>
+          </div>
+          <div class="help-text">Disable to use real API calls</div>
+        </div>
+
+        <div class="setting-group">
+          <label for="apiProvider">API Provider:</label>
+          <select id="apiProvider">
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+          </select>
+        </div>
+
+        <div class="setting-group" id="openaiSettings">
+          <label for="openaiKey">OpenAI API Key:</label>
+          <input type="password" id="openaiKey" placeholder="sk-..." />
+          <div class="help-text">
+            Get your API key from
+            <a href="https://platform.openai.com/api-keys" target="_blank"
+              >OpenAI Platform</a
+            >
+          </div>
+        </div>
+
+        <div class="setting-group" id="deepseekSettings" style="display: none">
+          <label for="deepseekKey">DeepSeek API Key:</label>
+          <input type="password" id="deepseekKey" placeholder="sk-..." />
+          <div class="help-text">
+            Get your API key from
+            <a href="https://platform.deepseek.com/api_keys" target="_blank"
+              >DeepSeek Platform</a
+            >
+          </div>
+        </div>
+      </div>
+
+      <button class="button" id="saveSettings">Save Settings</button>
+      <button class="button secondary" id="testApi">Test API Connection</button>
+
+      <div class="setting-group" style="margin-top: 20px">
+        <div class="help-text">
+          <strong>Keyboard Shortcut:</strong> Ctrl/Cmd + Shift + T to manually
+          check tone
+        </div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

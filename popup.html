@@ -202,8 +202,8 @@
     </div>
 
     <div class="content">
-      <div id="status-indicator" class="status development">
-        <strong>Development Mode:</strong> Using mock API responses for testing
+      <div id="status-indicator" class="status production">
+        <strong>Production Mode:</strong> Using real DeepSeek API for analysis
       </div>
 
       <div class="setting-group">
@@ -232,41 +232,16 @@
         <div class="setting-group">
           <div class="input-group">
             <label class="checkbox-label">
-              <input type="checkbox" id="useMockApi" checked />
-              <span>Use mock API (for development)</span>
+              <input type="checkbox" id="useMockApi" />
+              <span>Use mock API (for testing)</span>
             </label>
           </div>
-          <div class="help-text">Disable to use real API calls</div>
+          <div class="help-text">Enable for testing without real API calls</div>
         </div>
 
-        <div class="setting-group">
-          <label for="apiProvider">API Provider:</label>
-          <select id="apiProvider">
-            <option value="openai">OpenAI</option>
-            <option value="deepseek">DeepSeek</option>
-          </select>
-        </div>
-
-        <div class="setting-group" id="openaiSettings">
-          <label for="openaiKey">OpenAI API Key:</label>
-          <input type="password" id="openaiKey" placeholder="sk-..." />
-          <div class="help-text">
-            Get your API key from
-            <a href="https://platform.openai.com/api-keys" target="_blank"
-              >OpenAI Platform</a
-            >
-          </div>
-        </div>
-
-        <div class="setting-group" id="deepseekSettings" style="display: none">
-          <label for="deepseekKey">DeepSeek API Key:</label>
-          <input type="password" id="deepseekKey" placeholder="sk-..." />
-          <div class="help-text">
-            Get your API key from
-            <a href="https://platform.deepseek.com/api_keys" target="_blank"
-              >DeepSeek Platform</a
-            >
-          </div>
+        <div class="help-text">
+          <strong>🔑 DeepSeek API:</strong> Integrated and ready to use - no
+          configuration needed!
         </div>
       </div>
 

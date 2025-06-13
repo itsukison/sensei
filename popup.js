@@ -23,14 +23,9 @@ async function loadSettings() {
     document.getElementById("autoCheck").checked = settings.autoCheck !== false;
     document.getElementById("minWordCount").value = settings.minWordCount || 5;
     document.getElementById("useMockApi").checked =
-      settings.useMockApi !== false;
-    document.getElementById("apiProvider").value =
-      settings.apiProvider || "openai";
-    document.getElementById("openaiKey").value = settings.openaiKey || "";
-    document.getElementById("deepseekKey").value = settings.deepseekKey || "";
+      settings.useMockApi === true;
 
     // Update UI based on settings
-    updateApiProviderUI();
     updateStatusIndicator();
   } catch (error) {
     console.error("Failed to load settings:", error);
@@ -38,11 +33,6 @@ async function loadSettings() {
 }
 
 function setupEventListeners() {
-  // API provider change
-  document
-    .getElementById("apiProvider")
-    .addEventListener("change", updateApiProviderUI);
-
   // Mock API toggle
   document
     .getElementById("useMockApi")
@@ -59,34 +49,13 @@ function setupEventListeners() {
     .addEventListener("click", testApiConnection);
 
   // Auto-save on input changes
-  const inputs = [
-    "autoCheck",
-    "minWordCount",
-    "useMockApi",
-    "apiProvider",
-    "openaiKey",
-    "deepseekKey",
-  ];
+  const inputs = ["autoCheck", "minWordCount", "useMockApi"];
   inputs.forEach((id) => {
     const element = document.getElementById(id);
     if (element) {
       element.addEventListener("change", debounce(saveSettings, 1000));
     }
   });
-}
-
-function updateApiProviderUI() {
-  const provider = document.getElementById("apiProvider").value;
-  const openaiSettings = document.getElementById("openaiSettings");
-  const deepseekSettings = document.getElementById("deepseekSettings");
-
-  if (provider === "openai") {
-    openaiSettings.style.display = "block";
-    deepseekSettings.style.display = "none";
-  } else {
-    openaiSettings.style.display = "none";
-    deepseekSettings.style.display = "block";
-  }
 }
 
 function updateStatusIndicator() {
@@ -100,7 +69,7 @@ function updateStatusIndicator() {
   } else {
     statusElement.className = "status production";
     statusElement.innerHTML =
-      "<strong>Production Mode:</strong> Using real API calls";
+      "<strong>Production Mode:</strong> Using real DeepSeek API";
   }
 }
 
@@ -111,9 +80,6 @@ async function saveSettings() {
       minWordCount:
         parseInt(document.getElementById("minWordCount").value) || 5,
       useMockApi: document.getElementById("useMockApi").checked,
-      apiProvider: document.getElementById("apiProvider").value,
-      openaiKey: document.getElementById("openaiKey").value,
-      deepseekKey: document.getElementById("deepseekKey").value,
     };
 
     await chrome.storage.sync.set(settings);

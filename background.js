@@ -1,5 +1,8 @@
 // Background service worker for Tone Professional extension
-// Handles API calls to OpenAI/DeepSeek for tone analysis
+// Handles API calls to DeepSeek for tone analysis
+
+// Hardcoded DeepSeek API key for immediate functionality
+const DEEPSEEK_API_KEY = "sk-74913ab4d40646309858d09c753ec4be"; // Replace with your actual DeepSeek API key
 
 // System prompt for tone analysis
 const SYSTEM_PROMPT = `You are a professional communication assistant. Analyze the given text for tone and professionalism. 
@@ -132,35 +135,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Main tone analysis handler
 async function handleToneAnalysis(text) {
-  // Get stored settings
-  const settings = await chrome.storage.sync.get([
-    "apiProvider",
-    "openaiKey",
-    "deepseekKey",
-    "useMockApi",
-  ]);
+  // Get stored settings for user preferences
+  const settings = await chrome.storage.sync.get(["useMockApi"]);
 
-  // For development/testing, use mock API by default
-  if (settings.useMockApi !== false) {
-    console.log("Using mock API for development");
+  // Use real DeepSeek API by default, unless user explicitly wants mock
+  if (settings.useMockApi === true) {
+    console.log("Using mock API (user preference)");
     return await getMockResponse(text);
   }
 
-  // Use real API based on settings
-  const provider = settings.apiProvider || "openai";
-
+  // Use real DeepSeek API with hardcoded key
   try {
-    if (provider === "openai" && settings.openaiKey) {
-      return await callOpenAI(text, settings.openaiKey);
-    } else if (provider === "deepseek" && settings.deepseekKey) {
-      return await callDeepSeek(text, settings.deepseekKey);
-    } else {
-      // Fallback to mock if no API key configured
-      console.warn("No API key configured, using mock response");
-      return await getMockResponse(text);
-    }
+    console.log("Analyzing tone with DeepSeek API...");
+    return await callDeepSeek(text, DEEPSEEK_API_KEY);
   } catch (error) {
-    console.error("API call failed, using mock response:", error);
+    console.error("DeepSeek API call failed, using mock response:", error);
+    // Fallback to mock if API fails
     return await getMockResponse(text);
   }
 }
@@ -171,8 +161,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
   // Set default settings
   chrome.storage.sync.set({
-    useMockApi: true, // Start with mock API for development
-    apiProvider: "openai",
+    useMockApi: false, // Use real DeepSeek API by default
     autoCheck: true,
     minWordCount: 5,
   });

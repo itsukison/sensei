@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tone Professional - Demo</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding: 20px;
+        background: #3182ce;
+        color: white;
+        border-radius: 8px;
+      }
+
+      .demo-container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+
+      .demo-section {
+        margin-bottom: 30px;
+      }
+
+      .demo-section h3 {
+        color: #2d3748;
+        margin-bottom: 10px;
+      }
+
+      .test-input {
+        width: 100%;
+        min-height: 120px;
+        padding: 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+        box-sizing: border-box;
+      }
+
+      .test-input:focus {
+        outline: none;
+        border-color: #3182ce;
+        box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+      }
+
+      .contenteditable-demo {
+        width: 100%;
+        min-height: 120px;
+        padding: 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        box-sizing: border-box;
+        background: white;
+      }
+
+      .contenteditable-demo:focus {
+        outline: none;
+        border-color: #3182ce;
+        box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+      }
+
+      .test-phrases {
+        background: #f7fafc;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+
+      .test-phrases h4 {
+        margin: 0 0 10px;
+        color: #2d3748;
+      }
+
+      .phrase-button {
+        background: #e2e8f0;
+        border: none;
+        padding: 8px 12px;
+        margin: 4px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      .phrase-button:hover {
+        background: #cbd5e0;
+      }
+
+      .status {
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+        font-size: 13px;
+      }
+
+      .status.ready {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.analyzing {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+
+      /* Include all the suggestion box styles from styles.css */
+      .tone-suggestion-box {
+        position: absolute;
+        background: #ffffff;
+        border: 1px solid #e1e5e9;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        width: 350px;
+        max-width: calc(100vw - 20px);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        font-size: 14px;
+        z-index: 2147483647;
+        animation: fadeIn 0.2s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .tone-suggestion-header {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e1e5e9;
+        border-radius: 8px 8px 0 0;
+      }
+
+      .tone-icon {
+        font-size: 16px;
+        margin-right: 8px;
+      }
+
+      .tone-title {
+        font-weight: 600;
+        color: #1a202c;
+        flex: 1;
+      }
+
+      .tone-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: #718096;
+        cursor: pointer;
+        padding: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+      }
+
+      .tone-close:hover {
+        background: #e2e8f0;
+        color: #2d3748;
+      }
+
+      .tone-suggestion-content {
+        padding: 16px;
+      }
+
+      .tone-issues {
+        margin-bottom: 16px;
+      }
+
+      .tone-issues strong {
+        color: #e53e3e;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .tone-issues ul {
+        margin: 6px 0 0 0;
+        padding-left: 16px;
+        color: #4a5568;
+      }
+
+      .tone-issues li {
+        margin-bottom: 4px;
+        font-size: 13px;
+      }
+
+      .tone-suggestion-text {
+        margin-bottom: 12px;
+      }
+
+      .tone-suggestion-text strong {
+        color: #2d3748;
+        font-size: 13px;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .suggestion-text {
+        background: #f7fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 0;
+        color: #2d3748;
+        line-height: 1.4;
+        font-size: 13px;
+      }
+
+      .tone-explanation {
+        margin-bottom: 16px;
+        color: #718096;
+        font-style: italic;
+        font-size: 12px;
+      }
+
+      .tone-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .tone-accept-btn {
+        background: #3182ce;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        flex: 1;
+        transition: background-color 0.2s;
+      }
+
+      .tone-accept-btn:hover {
+        background: #2c5aa0;
+      }
+
+      .tone-dismiss-btn {
+        background: #e2e8f0;
+        color: #4a5568;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .tone-dismiss-btn:hover {
+        background: #cbd5e0;
+      }
+
+      .tone-suggestion-loading {
+        display: flex;
+        align-items: center;
+        padding: 20px;
+        color: #718096;
+        font-size: 14px;
+      }
+
+      .loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #e2e8f0;
+        border-top: 2px solid #3182ce;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 12px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>💼 Tone Professional - Demo</h1>
+      <p>Test the tone analysis functionality</p>
+    </div>
+
+    <div class="demo-container">
+      <div class="test-phrases">
+        <h4>Quick Test Phrases (click to insert):</h4>
+        <button
+          class="phrase-button"
+          onclick="insertPhrase('I need this done immediately!')"
+        >
+          "I need this done immediately!"
+        </button>
+        <button
+          class="phrase-button"
+          onclick="insertPhrase('You\'re wrong about this.')"
+        >
+          "You're wrong about this."
+        </button>
+        <button
+          class="phrase-button"
+          onclick="insertPhrase('This is completely unacceptable!')"
+        >
+          "This is completely unacceptable!"
+        </button>
+        <button
+          class="phrase-button"
+          onclick="insertPhrase('Thank you for your help with this project.')"
+        >
+          "Thank you for your help with this project."
+        </button>
+      </div>
+
+      <div class="demo-section">
+        <h3>Textarea Demo</h3>
+        <textarea
+          id="textarea-demo"
+          class="test-input"
+          placeholder="Type or paste some text here to test tone analysis..."
+        ></textarea>
+        <div id="textarea-status" class="status ready">
+          Ready - Start typing to see tone analysis
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h3>Contenteditable Demo</h3>
+        <div
+          id="contenteditable-demo"
+          class="contenteditable-demo"
+          contenteditable="true"
+          data-placeholder="Type or paste some text here to test tone analysis..."
+        ></div>
+        <div id="contenteditable-status" class="status ready">
+          Ready - Start typing to see tone analysis
+        </div>
+      </div>
+
+      <div class="demo-section">
+        <h3>Instructions</h3>
+        <ol>
+          <li>Type in either text field above</li>
+          <li>Use the quick test phrases or type your own text</li>
+          <li>After typing 5+ words, wait 1 second for analysis</li>
+          <li>If tone issues are detected, a suggestion popup will appear</li>
+          <li>Click "Accept Suggestion" to replace the text</li>
+        </ol>
+      </div>
+    </div>
+
+    <script>
+      // Mock API responses (same as extension)
+      function getMockResponse(text) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            const mockResponses = {
+              "I need this done immediately!": {
+                hasIssues: true,
+                issues: ["Demanding tone", "Lacks politeness"],
+                suggestion:
+                  "I would appreciate if this could be completed at your earliest convenience.",
+                explanation: "Replaced demanding language with polite request",
+              },
+              "You're wrong about this.": {
+                hasIssues: true,
+                issues: ["Direct contradiction", "Dismissive tone"],
+                suggestion:
+                  "I have a different perspective on this matter. Could we discuss the details?",
+                explanation:
+                  "Transformed direct contradiction into collaborative discussion",
+              },
+              "This is completely unacceptable!": {
+                hasIssues: true,
+                issues: ["Aggressive tone", "Accusatory language"],
+                suggestion:
+                  "I have concerns about this situation. Could we discuss how to improve it?",
+                explanation:
+                  "Replaced aggressive language with constructive feedback",
+              },
+              default: {
+                hasIssues: false,
+                issues: [],
+                suggestion: text,
+                explanation: "Text appears professional",
+              },
+            };
+
+            resolve(mockResponses[text] || mockResponses.default);
+          }, 500);
+        });
+      }
+
+      // Demo functionality
+      class ToneProfessionalDemo {
+        constructor() {
+          this.currentElement = null;
+          this.suggestionBox = null;
+          this.debounceTimer = null;
+          this.lastCheckedText = "";
+
+          this.init();
+        }
+
+        init() {
+          this.createSuggestionBox();
+          this.setupEventListeners();
+          console.log("Tone Professional Demo initialized");
+        }
+
+        setupEventListeners() {
+          // Textarea demo
+          const textarea = document.getElementById("textarea-demo");
+          textarea.addEventListener("input", (e) => {
+            this.currentElement = e.target;
+            this.updateStatus("textarea-status", "analyzing", "Analyzing...");
+            this.debounceCheck(e.target);
+          });
+
+          textarea.addEventListener("focus", (e) => {
+            this.currentElement = e.target;
+          });
+
+          // Contenteditable demo
+          const contenteditable = document.getElementById(
+            "contenteditable-demo"
+          );
+          contenteditable.addEventListener("input", (e) => {
+            this.currentElement = e.target;
+            this.updateStatus(
+              "contenteditable-status",
+              "analyzing",
+              "Analyzing..."
+            );
+            this.debounceCheck(e.target);
+          });
+
+          contenteditable.addEventListener("focus", (e) => {
+            this.currentElement = e.target;
+          });
+
+          // Hide suggestion on click outside
+          document.addEventListener("click", (e) => {
+            if (!this.suggestionBox?.contains(e.target)) {
+              this.hideSuggestionBox();
+            }
+          });
+        }
+
+        debounceCheck(element) {
+          clearTimeout(this.debounceTimer);
+          this.debounceTimer = setTimeout(() => {
+            this.checkTone(element);
+          }, 1000);
+        }
+
+        async checkTone(element) {
+          const text = this.getElementText(element);
+          const statusId = element.id + "-status";
+
+          // Check minimum word count
+          const wordCount = text.trim().split(/\s+/).length;
+          if (wordCount < 5) {
+            this.updateStatus(
+              statusId,
+              "ready",
+              "Ready - Need at least 5 words for analysis"
+            );
+            this.hideSuggestionBox();
+            return;
+          }
+
+          // Avoid checking the same text repeatedly
+          if (text === this.lastCheckedText) {
+            return;
+          }
+          this.lastCheckedText = text;
+
+          try {
+            const response = await getMockResponse(text);
+
+            if (response.hasIssues) {
+              this.showSuggestion(element, response);
+              this.updateStatus(
+                statusId,
+                "ready",
+                "Tone issues detected - See suggestion"
+              );
+            } else {
+              this.hideSuggestionBox();
+              this.updateStatus(
+                statusId,
+                "ready",
+                "Text appears professional ✓"
+              );
+            }
+          } catch (error) {
+            console.error("Analysis failed:", error);
+            this.updateStatus(statusId, "ready", "Analysis failed");
+          }
+        }
+
+        getElementText(element) {
+          if (element.tagName === "TEXTAREA") {
+            return element.value;
+          } else {
+            return element.textContent || element.innerText || "";
+          }
+        }
+
+        setElementText(element, text) {
+          if (element.tagName === "TEXTAREA") {
+            element.value = text;
+          } else {
+            element.textContent = text;
+          }
+
+          element.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+
+        updateStatus(statusId, className, message) {
+          const statusElement = document.getElementById(statusId);
+          if (statusElement) {
+            statusElement.className = `status ${className}`;
+            statusElement.textContent = message;
+          }
+        }
+
+        createSuggestionBox() {
+          this.suggestionBox = document.createElement("div");
+          this.suggestionBox.className = "tone-suggestion-box";
+          this.suggestionBox.style.display = "none";
+          document.body.appendChild(this.suggestionBox);
+        }
+
+        showSuggestion(element, analysis) {
+          const { issues, suggestion, explanation } = analysis;
+
+          this.suggestionBox.innerHTML = `
+          <div class="tone-suggestion-header">
+            <span class="tone-icon">💼</span>
+            <span class="tone-title">Tone Suggestion</span>
+            <button class="tone-close" onclick="demo.hideSuggestionBox()">×</button>
+          </div>
+          
+          <div class="tone-suggestion-content">
+            <div class="tone-issues">
+              <strong>Issues found:</strong>
+              <ul>
+                ${issues.map((issue) => `<li>${issue}</li>`).join("")}
+              </ul>
+            </div>
+            
+            <div class="tone-suggestion-text">
+              <strong>Suggested revision:</strong>
+              <p class="suggestion-text">${suggestion}</p>
+            </div>
+            
+            <div class="tone-explanation">
+              <small>${explanation}</small>
+            </div>
+            
+            <div class="tone-actions">
+              <button class="tone-accept-btn" onclick="demo.acceptSuggestion('${encodeURIComponent(
+                suggestion
+              )}')">
+                Accept Suggestion
+              </button>
+              <button class="tone-dismiss-btn" onclick="demo.hideSuggestionBox()">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        `;
+
+          this.positionSuggestionBox(element);
+          this.suggestionBox.style.display = "block";
+        }
+
+        positionSuggestionBox(element) {
+          const rect = element.getBoundingClientRect();
+          const scrollX =
+            window.pageXOffset || document.documentElement.scrollLeft;
+          const scrollY =
+            window.pageYOffset || document.documentElement.scrollTop;
+
+          let top = rect.bottom + scrollY + 5;
+          let left = rect.left + scrollX;
+
+          // Adjust if suggestion box would go off-screen
+          const boxWidth = 350;
+          const boxHeight = 200;
+
+          if (left + boxWidth > window.innerWidth) {
+            left = window.innerWidth - boxWidth - 10;
+          }
+
+          if (top + boxHeight > window.innerHeight + scrollY) {
+            top = rect.top + scrollY - boxHeight - 5;
+          }
+
+          this.suggestionBox.style.left = `${Math.max(10, left)}px`;
+          this.suggestionBox.style.top = `${Math.max(10, top)}px`;
+        }
+
+        acceptSuggestion(encodedSuggestion) {
+          const suggestion = decodeURIComponent(encodedSuggestion);
+
+          if (this.currentElement) {
+            this.setElementText(this.currentElement, suggestion);
+            this.hideSuggestionBox();
+            this.currentElement.focus();
+
+            // Update status
+            const statusId = this.currentElement.id + "-status";
+            this.updateStatus(statusId, "ready", "Suggestion applied ✓");
+          }
+        }
+
+        hideSuggestionBox() {
+          if (this.suggestionBox) {
+            this.suggestionBox.style.display = "none";
+          }
+        }
+      }
+
+      // Helper function for quick test phrases
+      function insertPhrase(phrase) {
+        if (demo.currentElement) {
+          demo.setElementText(demo.currentElement, phrase);
+          demo.currentElement.focus();
+
+          // Trigger analysis
+          const statusId = demo.currentElement.id + "-status";
+          demo.updateStatus(statusId, "analyzing", "Analyzing...");
+          demo.debounceCheck(demo.currentElement);
+        } else {
+          alert("Please click in one of the text fields first");
+        }
+      }
+
+      // Initialize demo
+      const demo = new ToneProfessionalDemo();
+    </script>
+  </body>
+</html>

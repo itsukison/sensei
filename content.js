@@ -1,299 +1,555 @@
-// Content script for Tone Professional extension
-// Detects user input and provides tone suggestions
+// Tone Professional - Content Script
+// This script detects typing in text fields and provides tone analysis
 
-class ToneProfessional {
-  constructor() {
-    this.currentElement = null;
-    this.suggestionBox = null;
-    this.isAnalyzing = false;
-    this.debounceTimer = null;
-    this.settings = {
-      autoCheck: true,
-      minWordCount: 5,
-    };
+console.log("Tone Professional: Content script loaded");
 
-    this.init();
-  }
+// Configuration
+const CONFIG = {
+  debounceMs: 1000,
+  wordThreshold: 5,
+  extensionName: "tone-professional",
+};
 
-  async init() {
-    // Load settings
-    await this.loadSettings();
+// Global state
+let debounceTimer = null;
+let currentSuggestionPopup = null;
+let currentTextElement = null;
+let isProcessing = false;
 
-    // Initialize the suggestion UI
-    this.createSuggestionBox();
+// Track processed elements to avoid duplicate listeners
+const processedElements = new WeakSet();
 
-    // Start monitoring for text input
-    this.startMonitoring();
+// Initialize the content script
+function init() {
+  console.log("Tone Professional: Initializing content script");
 
-    console.log("Tone Professional: Content script initialized");
-  }
+  // Start observing for text fields
+  observeTextFields();
 
-  async loadSettings() {
-    try {
-      const stored = await chrome.storage.sync.get([
-        "autoCheck",
-        "minWordCount",
-      ]);
-      this.settings = { ...this.settings, ...stored };
-    } catch (error) {
-      console.error("Failed to load settings:", error);
-    }
-  }
+  // Also process existing text fields
+  processExistingTextFields();
 
-  startMonitoring() {
-    // Monitor for focus on text input elements
-    document.addEventListener("focusin", (e) => {
-      if (this.isTextInputElement(e.target)) {
-        this.currentElement = e.target;
-        this.attachInputListener(e.target);
+  // Handle clicks to dismiss popups
+  document.addEventListener("click", handleDocumentClick, true);
+
+  // Add styles
+  addStyles();
+}
+
+// Create a mutation observer to watch for new text fields
+function observeTextFields() {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "childList") {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            processTextFieldsInElement(node);
+          }
+        });
       }
     });
+  });
 
-    // Monitor for focus out to hide suggestions
-    document.addEventListener("focusout", (e) => {
-      // Delay hiding to allow clicking on suggestion box
-      setTimeout(() => {
-        if (!this.suggestionBox?.matches(":hover")) {
-          this.hideSuggestionBox();
-        }
-      }, 100);
-    });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
 
-    // Handle keyboard shortcuts
-    document.addEventListener("keydown", (e) => {
-      // Ctrl/Cmd + Shift + T to trigger manual check
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "T") {
-        e.preventDefault();
-        this.manualCheck();
-      }
-    });
-  }
+// Process existing text fields on page load
+function processExistingTextFields() {
+  processTextFieldsInElement(document.body);
+}
 
-  isTextInputElement(element) {
-    // Check for textarea elements
-    if (element.tagName === "TEXTAREA") {
-      return true;
+// Find and process text fields in a given element
+function processTextFieldsInElement(element) {
+  // Find text areas and input fields
+  const textFields = element.querySelectorAll(
+    'textarea, input[type="text"], input[type="email"], [contenteditable="true"]'
+  );
+
+  textFields.forEach((field) => {
+    if (!processedElements.has(field)) {
+      attachToTextField(field);
+      processedElements.add(field);
     }
+  });
 
-    // Check for input elements with text types
-    if (element.tagName === "INPUT") {
-      const textTypes = ["text", "email", "search", "url"];
-      return textTypes.includes(element.type);
-    }
-
-    // Check for contenteditable elements
-    if (element.contentEditable === "true" || element.isContentEditable) {
-      return true;
-    }
-
-    // Check for common text input classes/attributes (e.g., Slack, Discord)
-    const textInputSelectors = [
-      '[role="textbox"]',
-      '[contenteditable="true"]',
-      ".ql-editor", // Quill editor
-      ".public-DraftEditor-content", // Draft.js
-      ".notranslate", // Google Docs
-    ];
-
-    return textInputSelectors.some((selector) => element.matches(selector));
-  }
-
-  attachInputListener(element) {
-    // Remove existing listener
-    element.removeEventListener("input", this.handleInput);
-
-    // Add new listener
-    this.handleInput = this.debounce((e) => {
-      if (this.settings.autoCheck) {
-        this.checkTone(element);
-      }
-    }, 1000);
-
-    element.addEventListener("input", this.handleInput);
-  }
-
-  debounce(func, wait) {
-    return (...args) => {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = setTimeout(() => func.apply(this, args), wait);
-    };
-  }
-
-  async manualCheck() {
-    if (this.currentElement && this.isTextInputElement(this.currentElement)) {
-      await this.checkTone(this.currentElement);
-    }
-  }
-
-  async checkTone(element) {
-    const text = this.getElementText(element);
-
-    // Check minimum word count
-    const wordCount = text.trim().split(/\s+/).length;
-    if (wordCount < this.settings.minWordCount) {
-      this.hideSuggestionBox();
-      return;
-    }
-
-    // Avoid checking the same text repeatedly
-    if (text === this.lastCheckedText) {
-      return;
-    }
-    this.lastCheckedText = text;
-
-    // Show loading state
-    this.showLoadingState(element);
-
-    try {
-      // Send text to background script for analysis
-      const response = await chrome.runtime.sendMessage({
-        action: "analyzeTone",
-        text: text,
-      });
-
-      if (response.success && response.data.hasIssues) {
-        this.showSuggestion(element, response.data);
-      } else {
-        this.hideSuggestionBox();
-      }
-    } catch (error) {
-      console.error("Tone analysis failed:", error);
-      this.hideSuggestionBox();
-    }
-  }
-
-  getElementText(element) {
-    if (element.tagName === "TEXTAREA" || element.tagName === "INPUT") {
-      return element.value;
-    } else {
-      return element.textContent || element.innerText || "";
-    }
-  }
-
-  setElementText(element, text) {
-    if (element.tagName === "TEXTAREA" || element.tagName === "INPUT") {
-      element.value = text;
-    } else {
-      element.textContent = text;
-    }
-
-    // Trigger input event to notify other scripts
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-
-  createSuggestionBox() {
-    this.suggestionBox = document.createElement("div");
-    this.suggestionBox.id = "tone-professional-suggestion";
-    this.suggestionBox.className = "tone-suggestion-box";
-    this.suggestionBox.style.display = "none";
-
-    document.body.appendChild(this.suggestionBox);
-  }
-
-  showLoadingState(element) {
-    this.suggestionBox.innerHTML = `
-      <div class="tone-suggestion-loading">
-        <div class="loading-spinner"></div>
-        <span>Analyzing tone...</span>
-      </div>
-    `;
-    this.positionSuggestionBox(element);
-    this.suggestionBox.style.display = "block";
-  }
-
-  showSuggestion(element, analysis) {
-    const { issues, suggestion, explanation } = analysis;
-
-    this.suggestionBox.innerHTML = `
-      <div class="tone-suggestion-header">
-        <span class="tone-icon">💼</span>
-        <span class="tone-title">Tone Suggestion</span>
-        <button class="tone-close" onclick="this.closest('.tone-suggestion-box').style.display='none'">×</button>
-      </div>
-      
-      <div class="tone-suggestion-content">
-        <div class="tone-issues">
-          <strong>Issues found:</strong>
-          <ul>
-            ${issues.map((issue) => `<li>${issue}</li>`).join("")}
-          </ul>
-        </div>
-        
-        <div class="tone-suggestion-text">
-          <strong>Suggested revision:</strong>
-          <p class="suggestion-text">${suggestion}</p>
-        </div>
-        
-        <div class="tone-explanation">
-          <small>${explanation}</small>
-        </div>
-        
-        <div class="tone-actions">
-          <button class="tone-accept-btn" onclick="window.toneProfessional.acceptSuggestion('${encodeURIComponent(
-            suggestion
-          )}')">
-            Accept Suggestion
-          </button>
-          <button class="tone-dismiss-btn" onclick="window.toneProfessional.hideSuggestionBox()">
-            Dismiss
-          </button>
-        </div>
-      </div>
-    `;
-
-    this.positionSuggestionBox(element);
-    this.suggestionBox.style.display = "block";
-  }
-
-  positionSuggestionBox(element) {
-    const rect = element.getBoundingClientRect();
-    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-
-    // Position below the element
-    let top = rect.bottom + scrollY + 5;
-    let left = rect.left + scrollX;
-
-    // Adjust if suggestion box would go off-screen
-    const boxWidth = 350;
-    const boxHeight = 200;
-
-    if (left + boxWidth > window.innerWidth) {
-      left = window.innerWidth - boxWidth - 10;
-    }
-
-    if (top + boxHeight > window.innerHeight + scrollY) {
-      top = rect.top + scrollY - boxHeight - 5;
-    }
-
-    this.suggestionBox.style.left = `${Math.max(10, left)}px`;
-    this.suggestionBox.style.top = `${Math.max(10, top)}px`;
-  }
-
-  acceptSuggestion(encodedSuggestion) {
-    const suggestion = decodeURIComponent(encodedSuggestion);
-
-    if (this.currentElement) {
-      this.setElementText(this.currentElement, suggestion);
-      this.hideSuggestionBox();
-
-      // Focus back on the element
-      this.currentElement.focus();
-    }
-  }
-
-  hideSuggestionBox() {
-    if (this.suggestionBox) {
-      this.suggestionBox.style.display = "none";
-    }
+  // Also check if the element itself is a text field
+  if (isTextField(element) && !processedElements.has(element)) {
+    attachToTextField(element);
+    processedElements.add(element);
   }
 }
 
-// Initialize when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    window.toneProfessional = new ToneProfessional();
+// Check if an element is a text field
+function isTextField(element) {
+  if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
+
+  const tagName = element.tagName.toLowerCase();
+  const type = element.type ? element.type.toLowerCase() : "";
+  const contentEditable = element.contentEditable;
+
+  return (
+    tagName === "textarea" ||
+    (tagName === "input" && ["text", "email", "search"].includes(type)) ||
+    contentEditable === "true" ||
+    contentEditable === ""
+  );
+}
+
+// Attach event listeners to a text field
+function attachToTextField(element) {
+  console.log(
+    "Tone Professional: Attaching to text field",
+    element.tagName,
+    element.type
+  );
+
+  // Handle input events
+  element.addEventListener("input", (e) => handleTextInput(e, element));
+  element.addEventListener("focus", (e) => handleTextFocus(e, element));
+  element.addEventListener("blur", (e) => handleTextBlur(e, element));
+
+  // Add visual indicator
+  try {
+    addVisualIndicator(element);
+  } catch (error) {
+    console.log("Could not add visual indicator:", error);
+  }
+}
+
+// Add a subtle visual indicator to monitored fields
+function addVisualIndicator(element) {
+  // Skip if element already has indicator
+  if (element.dataset.tonePro) return;
+  element.dataset.tonePro = "active";
+
+  // Create indicator
+  const indicator = document.createElement("div");
+  indicator.className = "tone-pro-indicator";
+  indicator.innerHTML = "💼";
+  indicator.style.cssText = `
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  // Position relative to element
+  const rect = element.getBoundingClientRect();
+  indicator.style.position = "fixed";
+  indicator.style.top = rect.top + 5 + "px";
+  indicator.style.right = window.innerWidth - rect.right + 5 + "px";
+
+  document.body.appendChild(indicator);
+
+  // Update position on scroll/resize
+  const updatePosition = () => {
+    const newRect = element.getBoundingClientRect();
+    indicator.style.top = newRect.top + 5 + "px";
+    indicator.style.right = window.innerWidth - newRect.right + 5 + "px";
+  };
+
+  window.addEventListener("scroll", updatePosition);
+  window.addEventListener("resize", updatePosition);
+
+  // Show/hide on focus/blur
+  element.addEventListener("focus", () => {
+    indicator.style.opacity = "0.6";
   });
+
+  element.addEventListener("blur", () => {
+    indicator.style.opacity = "0.3";
+  });
+
+  // Store reference for cleanup
+  element._toneProIndicator = indicator;
+}
+
+// Handle text input events
+function handleTextInput(event, element) {
+  currentTextElement = element;
+
+  // Clear existing timer
+  clearTimeout(debounceTimer);
+
+  // Set new timer for debounced analysis
+  debounceTimer = setTimeout(() => {
+    analyzeText(element);
+  }, CONFIG.debounceMs);
+}
+
+// Handle focus events
+function handleTextFocus(event, element) {
+  currentTextElement = element;
+}
+
+// Handle blur events
+function handleTextBlur(event, element) {
+  // Hide suggestion after a short delay
+  setTimeout(() => {
+    if (currentTextElement === element) {
+      hideSuggestionPopup();
+    }
+  }, 200);
+}
+
+// Get text content from element
+function getTextFromElement(element) {
+  if (
+    element.tagName.toLowerCase() === "textarea" ||
+    element.tagName.toLowerCase() === "input"
+  ) {
+    return element.value;
+  } else if (element.contentEditable === "true") {
+    return element.innerText || element.textContent;
+  }
+  return "";
+}
+
+// Set text content to element
+function setTextToElement(element, text) {
+  if (
+    element.tagName.toLowerCase() === "textarea" ||
+    element.tagName.toLowerCase() === "input"
+  ) {
+    element.value = text;
+  } else if (element.contentEditable === "true") {
+    element.innerText = text;
+  }
+
+  // Trigger input event
+  const event = new Event("input", { bubbles: true });
+  element.dispatchEvent(event);
+}
+
+// Analyze text content
+async function analyzeText(element) {
+  const text = getTextFromElement(element).trim();
+
+  // Check minimum word count
+  const words = text.split(/\s+/).filter((word) => word.length > 0);
+  if (words.length < CONFIG.wordThreshold) {
+    hideSuggestionPopup();
+    return;
+  }
+
+  // Avoid duplicate processing
+  if (isProcessing) {
+    return;
+  }
+
+  isProcessing = true;
+
+  try {
+    console.log(
+      "Tone Professional: Analyzing text:",
+      text.substring(0, 100) + "..."
+    );
+
+    // Send message to background script
+    const response = await chrome.runtime.sendMessage({
+      action: "analyzeTone",
+      text: text,
+    });
+
+    if (response.error) {
+      console.error("Analysis error:", response.error);
+      showErrorMessage(response.error);
+    } else if (response.hasIssues) {
+      showSuggestionPopup(element, response);
+    } else {
+      hideSuggestionPopup();
+      console.log("Tone Professional: Text appears professional");
+    }
+  } catch (error) {
+    console.error("Tone Professional: Analysis failed:", error);
+    showErrorMessage("Analysis failed. Please try again.");
+  } finally {
+    isProcessing = false;
+  }
+}
+
+// Show suggestion popup
+function showSuggestionPopup(element, analysis) {
+  // Remove existing popup
+  hideSuggestionPopup();
+
+  // Create popup element
+  const popup = document.createElement("div");
+  popup.className = "tone-pro-suggestion-popup";
+  popup.innerHTML = createPopupHTML(analysis);
+
+  // Apply styles
+  popup.style.cssText = `
+    position: fixed;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    width: 400px;
+    max-width: calc(100vw - 40px);
+    z-index: 2147483647;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    animation: tone-pro-slideIn 0.3s ease-out;
+  `;
+
+  // Add to document
+  document.body.appendChild(popup);
+  currentSuggestionPopup = popup;
+
+  // Position popup
+  positionPopup(popup, element);
+
+  // Add event listeners
+  addPopupEventListeners(popup, element, analysis);
+
+  console.log("Tone Professional: Showing suggestion popup");
+}
+
+// Create popup HTML content
+function createPopupHTML(analysis) {
+  const issuesHTML = analysis.issues
+    .map((issue) => `<li>${escapeHtml(issue)}</li>`)
+    .join("");
+
+  return `
+    <div style="display: flex; align-items: center; padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+      <span style="font-size: 20px; margin-right: 10px;">💡</span>
+      <span style="font-weight: 600; color: #2d3748; flex: 1;">Tone Suggestion</span>
+      <button class="tone-pro-close" style="background: none; border: none; font-size: 20px; color: #a0aec0; cursor: pointer; padding: 0; width: 24px; height: 24px; border-radius: 4px;">×</button>
+    </div>
+    <div style="padding: 20px;">
+      <div style="margin-bottom: 20px;">
+        <div style="color: #e53e3e; font-size: 14px; font-weight: 600; margin-bottom: 8px;">Issues found:</div>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          ${issuesHTML}
+        </ul>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <div style="color: #2d3748; font-size: 14px; font-weight: 600; margin-bottom: 8px;">Suggested revision:</div>
+        <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; color: #2d3748; line-height: 1.5;">
+          ${escapeHtml(analysis.suggestion)}
+        </div>
+      </div>
+      <div style="color: #718096; font-style: italic; font-size: 13px; margin-bottom: 20px;">
+        ${escapeHtml(analysis.explanation)}
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button class="tone-pro-accept" style="padding: 12px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; background: #3182ce; color: white; flex: 1; transition: all 0.2s ease;">
+          Accept Suggestion
+        </button>
+        <button class="tone-pro-dismiss" style="padding: 12px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; background: #edf2f7; color: #4a5568; flex: 1; transition: all 0.2s ease;">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Position popup relative to text element
+function positionPopup(popup, element) {
+  const rect = element.getBoundingClientRect();
+
+  // Position below the element
+  popup.style.top = rect.bottom + 10 + "px";
+  popup.style.left = rect.left + "px";
+
+  // Adjust if popup goes off screen
+  setTimeout(() => {
+    const popupRect = popup.getBoundingClientRect();
+
+    // Adjust horizontal position
+    if (popupRect.right > window.innerWidth) {
+      popup.style.left = window.innerWidth - popupRect.width - 20 + "px";
+    }
+    if (popupRect.left < 0) {
+      popup.style.left = "20px";
+    }
+
+    // Adjust vertical position
+    if (popupRect.bottom > window.innerHeight) {
+      popup.style.top = rect.top - popupRect.height - 10 + "px";
+    }
+    if (popup.getBoundingClientRect().top < 0) {
+      popup.style.top = "20px";
+    }
+  }, 10);
+}
+
+// Add event listeners to popup buttons
+function addPopupEventListeners(popup, element, analysis) {
+  // Close button
+  const closeBtn = popup.querySelector(".tone-pro-close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideSuggestionPopup();
+    });
+
+    closeBtn.addEventListener("mouseenter", () => {
+      closeBtn.style.background = "#edf2f7";
+      closeBtn.style.color = "#4a5568";
+    });
+
+    closeBtn.addEventListener("mouseleave", () => {
+      closeBtn.style.background = "none";
+      closeBtn.style.color = "#a0aec0";
+    });
+  }
+
+  // Accept button
+  const acceptBtn = popup.querySelector(".tone-pro-accept");
+  if (acceptBtn) {
+    acceptBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setTextToElement(element, analysis.suggestion);
+      hideSuggestionPopup();
+      console.log("Tone Professional: Suggestion accepted");
+    });
+
+    acceptBtn.addEventListener("mouseenter", () => {
+      acceptBtn.style.background = "#2c5aa0";
+      acceptBtn.style.transform = "translateY(-1px)";
+    });
+
+    acceptBtn.addEventListener("mouseleave", () => {
+      acceptBtn.style.background = "#3182ce";
+      acceptBtn.style.transform = "translateY(0)";
+    });
+  }
+
+  // Dismiss button
+  const dismissBtn = popup.querySelector(".tone-pro-dismiss");
+  if (dismissBtn) {
+    dismissBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideSuggestionPopup();
+    });
+
+    dismissBtn.addEventListener("mouseenter", () => {
+      dismissBtn.style.background = "#e2e8f0";
+    });
+
+    dismissBtn.addEventListener("mouseleave", () => {
+      dismissBtn.style.background = "#edf2f7";
+    });
+  }
+}
+
+// Hide suggestion popup
+function hideSuggestionPopup() {
+  if (currentSuggestionPopup) {
+    currentSuggestionPopup.remove();
+    currentSuggestionPopup = null;
+  }
+}
+
+// Show error message
+function showErrorMessage(message) {
+  console.error("Tone Professional:", message);
+
+  // Create simple error notification
+  const errorDiv = document.createElement("div");
+  errorDiv.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #fed7d7;
+    color: #9b2c2c;
+    padding: 12px 16px;
+    border-radius: 8px;
+    z-index: 2147483647;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    max-width: 300px;
+    animation: tone-pro-slideIn 0.3s ease-out;
+  `;
+  errorDiv.textContent = `Tone Professional: ${message}`;
+
+  document.body.appendChild(errorDiv);
+
+  // Remove after 5 seconds
+  setTimeout(() => {
+    if (errorDiv.parentNode) {
+      errorDiv.parentNode.removeChild(errorDiv);
+    }
+  }, 5000);
+}
+
+// Handle document clicks to dismiss popups
+function handleDocumentClick(event) {
+  if (
+    currentSuggestionPopup &&
+    !currentSuggestionPopup.contains(event.target)
+  ) {
+    // Don't hide if clicking on the current text element
+    if (currentTextElement && currentTextElement.contains(event.target)) {
+      return;
+    }
+    hideSuggestionPopup();
+  }
+}
+
+// Add CSS styles
+function addStyles() {
+  if (document.getElementById("tone-pro-styles")) return;
+
+  const style = document.createElement("style");
+  style.id = "tone-pro-styles";
+  style.textContent = `
+    @keyframes tone-pro-slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .tone-pro-suggestion-popup ul li {
+      color: #718096 !important;
+      font-size: 14px !important;
+      margin-bottom: 4px !important;
+      padding-left: 16px !important;
+      position: relative !important;
+    }
+    
+    .tone-pro-suggestion-popup ul li::before {
+      content: "•" !important;
+      color: #e53e3e !important;
+      position: absolute !important;
+      left: 0 !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// Start the content script
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
 } else {
-  window.toneProfessional = new ToneProfessional();
+  init();
 }

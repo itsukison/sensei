@@ -12,7 +12,7 @@ Your task:
 2. Suggest a more professional, polite, and constructive alternative
 3. Maintain the original intent and key information
 
-Respond with a JSON object containing:
+Respond with ONLY a valid JSON object (no markdown, no code blocks, no extra text) containing:
 {
   "hasIssues": boolean,
   "issues": ["list of specific tone issues found"],
@@ -70,7 +70,7 @@ async function callOpenAI(text, apiKey) {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: text },
         ],
-        max_tokens: 200,
+        max_tokens: 300,
         temperature: 0.3,
       }),
     });
@@ -80,10 +80,34 @@ async function callOpenAI(text, apiKey) {
     }
 
     const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
+    return parseAIResponse(data.choices[0].message.content);
   } catch (error) {
     console.error("OpenAI API call failed:", error);
     throw error;
+  }
+}
+
+// Helper function to clean and parse AI response
+function parseAIResponse(content) {
+  // Remove markdown code blocks if present
+  let cleanContent = content.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+
+  // Remove any leading/trailing whitespace
+  cleanContent = cleanContent.trim();
+
+  // Find the JSON object (look for first { and last })
+  const firstBrace = cleanContent.indexOf("{");
+  const lastBrace = cleanContent.lastIndexOf("}");
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
+  }
+
+  try {
+    return JSON.parse(cleanContent);
+  } catch (error) {
+    console.error("Failed to parse AI response:", cleanContent);
+    throw new Error("Invalid JSON response from AI");
   }
 }
 
@@ -104,7 +128,7 @@ async function callDeepSeek(text, apiKey) {
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: text },
           ],
-          max_tokens: 200,
+          max_tokens: 300,
           temperature: 0.3,
         }),
       }
@@ -115,7 +139,7 @@ async function callDeepSeek(text, apiKey) {
     }
 
     const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
+    return parseAIResponse(data.choices[0].message.content);
   } catch (error) {
     console.error("DeepSeek API call failed:", error);
     throw error;

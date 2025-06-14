@@ -2,7 +2,7 @@
 // Handles API calls to DeepSeek for tone analysis
 
 // Hardcoded DeepSeek API key for immediate functionality
-const DEEPSEEK_API_KEY = ""; // Replace with your actual DeepSeek API key
+const DEEPSEEK_API_KEY = "sk-74913ab4d40646309858d09c753ec4be"; // Replace with your actual DeepSeek API key
 
 // System prompt for tone analysis
 const SYSTEM_PROMPT = `You are a professional communication assistant. Analyze the given text for tone and professionalism. 
